@@ -137,15 +137,15 @@ Automatically skips: `__pycache__`, `.git`, `node_modules`, `venv`, `dist`, `bui
 
 All settings are in `app/config.py` and read from `.env`:
 
-| Variable | Default | Description |
-|---|---|---|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
-| `OLLAMA_MODEL` | `qwen2.5:3b` | LLM model for answering |
-| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Embedding model |
-| `CHROMA_DB_PATH` | `./data/chroma_db` | Vector DB storage path |
-| `CHUNK_SIZE` | `1000` | Max tokens per chunk |
-| `CHUNK_OVERLAP` | `150` | Overlap between chunks |
-| `MAX_RETRIEVAL_DOCS` | `6` | Chunks retrieved per query |
+| Variable | Description |
+|---|---|
+| `OLLAMA_BASE_URL` | Ollama server URL |
+| `OLLAMA_MODEL` | LLM model for answering |
+| `OLLAMA_EMBEDDING_MODEL` | Embedding model |
+| `CHROMA_DB_PATH` | Vector DB storage path |
+| `CHUNK_SIZE` | Max tokens per chunk |
+| `CHUNK_OVERLAP` | Overlap between chunks |
+| `MAX_RETRIEVAL_DOCS` | Chunks retrieved per query |
 
 ---
 
