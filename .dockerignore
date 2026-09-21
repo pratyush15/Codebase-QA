@@ -1,0 +1,25 @@
+# Runtime artifacts — mounted in via the ./data volume instead, and should
+# never be baked into the image.
+data/
+eval/eval_runs.jsonl
+
+# Local envs / secrets — supplied at runtime via docker-compose env_file,
+# never copied into the image.
+.env
+.env.*
+!.env.example
+
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+
+.DS_Store
+Thumbs.db

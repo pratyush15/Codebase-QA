@@ -1,0 +1,103 @@
+# Brings up three pieces:
+#   ollama      - the local LLM/embedding server (own container, so nothing
+#                 needs to be installed on the host beyond Docker).
+#   ollama-init - a one-shot job that pulls the two models config.py
+#                 requires (OLLAMA_MODEL / OLLAMA_EMBEDDING_MODEL in
+#                 .env.example) before the app starts, so the first request
+#                 doesn't stall on an on-demand pull.
+#   ui / api    - the Streamlit UI and the FastAPI layer, built from the
+#                 same Dockerfile, run as separate containers, both reading
+#                 the same Chroma DB via the shared ./data volume.
+#
+# Usage:
+#   cp .env.example .env   # fill in the values as before
+#   docker compose up --build
+#   UI:  http://localhost:8501
+#   API: http://localhost:8000/docs
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Uncomment to give the container GPU access (requires the NVIDIA
+    # Container Toolkit on the host); Ollama falls back to CPU without it.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama-init:
+    image: curlimages/curl:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    # OLLAMA_MODEL / OLLAMA_EMBEDDING_MODEL below should match .env — kept
+    # as separate env vars here (rather than sourced from .env) since this
+    # is infra bootstrapping, not app config.
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        curl -sf http://ollama:11434/api/pull -d "{\"name\":\"$$OLLAMA_MODEL\"}" &&
+        curl -sf http://ollama:11434/api/pull -d "{\"name\":\"$$OLLAMA_EMBEDDING_MODEL\"}"
+    restart: "no"
+
+  ui:
+    build: .
+    command: streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      # Overrides the .env value (typically http://localhost:11434, correct
+      # only for running the app directly on the host) to reach the ollama
+      # service by its container name on the compose network.
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    command: uvicorn api:app --app-dir app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ollama_data:
